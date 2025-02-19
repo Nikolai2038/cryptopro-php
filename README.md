@@ -47,3 +47,15 @@
 ```sh
 docker-compose build
 ```
+
+## 3. Запуск
+
+```sh
+docker-compose up -d
+```
+
+## 4. Зайти в контейнер
+
+```sh
+docker-compose exec -it cryptopro-php bash
+```

@@ -116,12 +116,9 @@ RUN php-config --version
 # ========================================
 # Настройка PHP
 # ========================================
-# Директория, в которой будем работать
-WORKDIR "${TEMP_WORK_DIRECTORY}/php-${PHP_VERSION_FULL}"
-
 # Копирование файлов конфигурации
 RUN mkdir --parents "${PHP_INI_DIR}"
-RUN cp -T "php.ini-development" "${PHP_INI_DIR}/php.ini"
+RUN cp -T "${TEMP_WORK_DIRECTORY}/php-${PHP_VERSION_FULL}/php.ini-development" "${PHP_INI_DIR}/php.ini"
 RUN cp -T "${PHP_INI_DIR}/php-fpm.conf.default" "${PHP_INI_DIR}/php-fpm.conf"
 RUN cp -T "${PHP_INI_DIR}/php-fpm.d/www.conf.default" "${PHP_INI_DIR}/php-fpm.d/www.conf"
 # ========================================
@@ -177,9 +174,10 @@ RUN if { [ "${CSP_VERSION_MAIN}" -eq "50" ] && [ "${CSP_VERSION_REDACTION}" -ge 
       # ----------------------------------------
       # Установка CSP и Cades
       # ----------------------------------------
-      ./install.sh lsb-cprocsp-devel cprocsp-pki-cades && \
       if [ "${INSTALL_PHP_CADES_FROM_REPO}" = "0" ]; then \
-        ./install.sh cprocsp-pki-phpcades; \
+        ./install.sh lsb-cprocsp-devel cprocsp-pki-cades cprocsp-pki-phpcades; \
+      else \
+        ./install.sh lsb-cprocsp-devel cprocsp-pki-cades; \
       fi; \
       # ----------------------------------------
     else \
@@ -285,7 +283,7 @@ RUN eval "$(/opt/cprocsp/src/doxygen/setenv.sh --64)" && \
 RUN mv "${PHP_CADES_DIRECTORY}/libphpcades.so" "$(php -i | grep '^extension_dir => ' | awk '{print $3}')"
 
 # Включение расширения
-RUN mkdir "${PHP_INI_DIR}/conf.d" && \
+RUN mkdir --parents "${PHP_INI_DIR}/conf.d" && \
     echo "extension=libphpcades.so" >> "${PHP_INI_DIR}/conf.d/cryptopro_custom_settings.ini"
 
 # Проверка установки
@@ -293,9 +291,89 @@ RUN php -r "var_dump(class_exists('CPStore'));" | grep -q 'bool(true)'
 # ========================================
 
 # ========================================
-# TODO: Остальная установка
+# Настройки PHP FPM
 # ========================================
-# ...
+ARG WWW_CONF_PATH="${PHP_INI_DIR}/php-fpm.d/www.conf"
+
+# Добавление пользователя (пользователь www-data уже существует, поэтому пропускаем, если выбран именно он)
+RUN if [ "${PHP_USER_GROUP}" != "www-data" ]; then \
+      groupadd --system "${PHP_USER_GROUP}"; \
+    fi
+RUN if [ "${PHP_USER_NAME}" != "www-data" ]; then \
+      useradd --no-log-init --gid "${PHP_USER_GROUP}" "${PHP_USER_NAME}" --create-home; \
+    fi
+
+# Обновление конфигурации
+RUN sed -Ei "s/^(user = ).*\$/\1${PHP_USER_NAME}/" "${WWW_CONF_PATH}"
+RUN sed -Ei "s/^(group = ).*\$/\1${PHP_USER_GROUP}/" "${WWW_CONF_PATH}"
+
+# Для использования в entrypoint.sh
+ENV PHP_USER_NAME="${PHP_USER_NAME}"
+ENV PHP_USER_GROUP="${PHP_USER_GROUP}"
+# ========================================
+
+# ========================================
+# Настройка паролей
+# ========================================
+ARG ROOT_PASSWORD="root"
+RUN echo "root:${ROOT_PASSWORD}" | chpasswd
+
+ARG WWW_DATA_PASSWORD="www-data"
+RUN echo "www-data:${WWW_DATA_PASSWORD}" | chpasswd
+
+ARG PHP_USER_PASSWORD="${PHP_USER_NAME}"
+RUN echo "${PHP_USER_NAME}:${PHP_USER_PASSWORD}" | chpasswd
+# ========================================
+
+# ========================================
+# Установка Composer
+# ========================================
+# Директория, в которой будем работать
+WORKDIR "${TEMP_WORK_DIRECTORY}"
+
+# Способ 1: Использование уже скачанного файла
+COPY ./composer-setup.php ./composer-setup.php
+
+# Способ 2: Скачивание каждый раз
+# RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+
+# Хэш может поменяться со временем (в случае скачивания каждый раз) - брать его с https://getcomposer.org/download
+RUN php -r "if (hash_file('sha384', 'composer-setup.php') === 'dac665fdc30fdd8ec78b38b9800061b4150413ff2e3b6f88543c636f7cd84f6db9189d43a81e5503cda447da73c7e5b6') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
+
+ARG COMPOSER_VERSION
+RUN if [ -z "${COMPOSER_VERSION}" ]; then \
+      echo "Необходимо указать переменную COMPOSER_VERSION!"; \
+      exit 1; \
+    fi
+RUN php composer-setup.php --version "${COMPOSER_VERSION}"
+RUN mv composer.phar /usr/local/bin/composer
+RUN php -r "unlink('composer-setup.php');"
+
+# Проверка установки Composer
+RUN composer --version
+
+# Необходимо для распаковки пакетов при выполнении команды "composer install"
+RUN apt-get update && apt-get dist-upgrade -y \
+    && apt install -y \
+        zip \
+        unzip
+# ========================================
+
+# ========================================
+# Установка Xdebug
+# ========================================
+ARG CI_ENVIRONMENT_NAME="dev"
+ENV CI_ENVIRONMENT_NAME="${CI_ENVIRONMENT_NAME}"
+ARG XDEBUG_VERSION
+RUN if [ "${CI_ENVIRONMENT_NAME}" = "dev" ] || [ "${CI_ENVIRONMENT_NAME}" = "test" ]; then \
+      if [ -z "${XDEBUG_VERSION}" ]; then \
+        echo "Необходимо указать переменную XDEBUG_VERSION!"; \
+        exit 1; \
+      fi && \
+      pecl install "xdebug-${XDEBUG_VERSION}" && \
+      mkdir --parents "${PHP_INI_DIR}/conf.d" && \
+      echo "zend_extension=xdebug.so" >> "${PHP_INI_DIR}/conf.d/xdebug.ini"; \
+    fi
 # ========================================
 
 # ========================================
@@ -312,3 +390,16 @@ RUN rm -r "${TEMP_WORK_DIRECTORY}"
 # Очистка временных файлов
 RUN rm -rf /tmp/* /var/tmp/*
 # ========================================
+
+# Рабочая директория для "entrypoint.sh"
+WORKDIR /app
+
+# Apply lang settings to fix russian letters behaviour in CLI
+ENV LANG=C.UTF-8
+
+# Скрипт запуска контейнера
+COPY ./entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+ENTRYPOINT ["/bin/bash","./entrypoint.sh"]
+
+CMD ["tail", "-f", "/dev/null"]

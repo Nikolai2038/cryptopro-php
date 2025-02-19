@@ -13,5 +13,16 @@ services:
 
         - CSP_VERSION_MAIN
         - CSP_VERSION_REDACTION
+
+        - COMPOSER_VERSION
+        - XDEBUG_VERSION
+
+        - CI_ENVIRONMENT_NAME
     image: cryptopro-php:latest
     container_name: cryptopro-php
+    environment:
+      - XDEBUG_IP
+      - XDEBUG_IS_LOGS_VISIBLE
+      - PHP_IDE_CONFIG
+
+      - TZ
