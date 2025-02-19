@@ -8,3 +8,4 @@
 # Архивы с системными пакетами CryptoPro
 /cryptopro/*
 !/cryptopro/.gitkeep
+!/cryptopro/*.patch

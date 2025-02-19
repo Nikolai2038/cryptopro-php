@@ -4,6 +4,13 @@ services:
       context: ./
       dockerfile: ./Dockerfile
       args:
+        - CONTAINER_REGISTRY
+        - DEBIAN_VERSION
+
+        - PHP_VERSION_MAJOR
+        - PHP_VERSION_MINOR
+        - PHP_VERSION_PATCH
+
         - CSP_VERSION_MAIN
         - CSP_VERSION_REDACTION
     image: cryptopro-php:latest
