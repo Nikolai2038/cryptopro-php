@@ -1,0 +1,10 @@
+# Переменные окружения
+/.env
+
+# Сертификаты
+/certificates/*
+!/certificates/.gitkeep
+
+# Архивы с системными пакетами CryptoPro
+/cryptopro/*
+!/cryptopro/.gitkeep

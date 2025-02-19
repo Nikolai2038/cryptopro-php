@@ -1,0 +1,10 @@
+services:
+  cryptopro-php:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+      args:
+        - CSP_VERSION_MAIN
+        - CSP_VERSION_REDACTION
+    image: cryptopro-php:latest
+    container_name: cryptopro-php
