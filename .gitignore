@@ -7,7 +7,6 @@
 
 # Архивы с системными пакетами CryptoPro
 /cryptopro/*
-!/cryptopro/.gitkeep
 # Патчи для PHP при установке PHP Cades в систему
 !/cryptopro/php7_support.patch
 !/cryptopro/php8_support.patch
