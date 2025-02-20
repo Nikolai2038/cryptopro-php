@@ -42,6 +42,14 @@
 
     - [Cades](https://cryptopro.ru/sites/default/files/products/cades/current_release_2_0/cades-linux-amd64.tar.gz): `./cryptopro/cades-linux-amd64.tar.gz`;
 
+7. Поместить сертификат (например, `cert.pfx`) в папку `./certificates`;
+8. В файле `.env` указать переменные для CryptoPro:
+
+    - `CRYPTOPRO_LICENSE`;
+    - `CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME`;
+    - `CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN`;
+    - `CRYPTOPRO_CERTIFICATE_PFX_FILE_HASH`.
+
 ## 2. Сборка
 
 ```sh
