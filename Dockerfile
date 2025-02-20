@@ -376,6 +376,49 @@ RUN if [ "${CI_ENVIRONMENT_NAME}" = "dev" ] || [ "${CI_ENVIRONMENT_NAME}" = "tes
     fi
 # ========================================
 
+# Рабочая директория для "entrypoint.sh"
+WORKDIR /app
+
+# ========================================
+# CryptoPro: Установка лицензии
+# ========================================
+ARG CRYPTOPRO_LICENSE
+RUN if [ -n "${CRYPTOPRO_LICENSE}" ]; then \
+      echo "Применение лицензии CryptoPro \"${CRYPTOPRO_LICENSE}\"..." && \
+      cpconfig -license -set "${CRYPTOPRO_LICENSE}"; \
+    fi
+# ========================================
+
+# ========================================
+# CryptoPro: Установка сертификата
+# ========================================
+# Копирование сертификатов
+COPY --chown="${PHP_USER_NAME}:${PHP_USER_GROUP}" ./certificates ./certificates
+
+ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME
+ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
+RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="/app/certificates/${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" && \
+    if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" ]; then \
+      echo "Путь к файлу PFX сертификата CryptoPro не указан! Сертификат использоваться не будет."; \
+    else \
+      if [ ! -f "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL}" ]; then \
+        echo "Указанный файл PFX сертификата CryptoPro не найден! Путь: ${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL}" && \
+        exit 1; \
+      fi && \
+      \
+      if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}" ]; then \
+        echo "Указан файл сертификата, но не указан PIN для него! PIN необходимо указать в переменной CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN."; \
+        exit 1; \
+      fi && \
+      \
+      echo "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}\n${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}" | \
+      su "${PHP_USER_NAME}" -s /bin/bash -c "certmgr -install -pfx \
+        -file "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL}" \
+        -pin "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}"; \
+      "; \
+    fi
+# ========================================
+
 # ========================================
 # Очистка лишних файлов и кешей для уменьшения размера образа
 # ========================================
@@ -390,9 +433,6 @@ RUN rm -r "${TEMP_WORK_DIRECTORY}"
 # Очистка временных файлов
 RUN rm -rf /tmp/* /var/tmp/*
 # ========================================
-
-# Рабочая директория для "entrypoint.sh"
-WORKDIR /app
 
 # Apply lang settings to fix russian letters behaviour in CLI
 ENV LANG=C.UTF-8

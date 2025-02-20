@@ -18,6 +18,10 @@ services:
         - XDEBUG_VERSION
 
         - CI_ENVIRONMENT_NAME
+
+        - CRYPTOPRO_LICENSE
+        - CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME
+        - CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
     image: cryptopro-php:latest
     container_name: cryptopro-php
     environment:
