@@ -54,8 +54,10 @@ docker-compose build
 docker-compose up -d
 ```
 
-## 4. Зайти в контейнер
+## 4. Подписание XML-файла
 
 ```sh
-docker-compose exec -it cryptopro-php bash
+docker-compose exec -it -u www-data cryptopro-php sh -c 'php -f ./src/sign_xml.php ./data/test.xml'
 ```
+
+После выполнения этого скрипта, если всё успешно, в папке `./data` появится подписанный файл `./data/test.xml.signed.xml`.

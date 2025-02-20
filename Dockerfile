@@ -376,9 +376,6 @@ RUN if [ "${CI_ENVIRONMENT_NAME}" = "dev" ] || [ "${CI_ENVIRONMENT_NAME}" = "tes
     fi
 # ========================================
 
-# Рабочая директория для "entrypoint.sh"
-WORKDIR /app
-
 # ========================================
 # CryptoPro: Установка лицензии
 # ========================================
@@ -389,15 +386,20 @@ RUN if [ -n "${CRYPTOPRO_LICENSE}" ]; then \
     fi
 # ========================================
 
+# Рабочая директория для "entrypoint.sh"
+ARG APP_DIRECTORY="/app"
+
 # ========================================
 # CryptoPro: Установка сертификата
 # ========================================
+ARG CERTIFICATES_DIRECTORY="${APP_DIRECTORY}/certificates"
+
 # Копирование сертификатов
-COPY --chown="${PHP_USER_NAME}:${PHP_USER_GROUP}" ./certificates ./certificates
+COPY --chown="${PHP_USER_NAME}:${PHP_USER_GROUP}" ./certificates "${CERTIFICATES_DIRECTORY}"
 
 ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME
 ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
-RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="/app/certificates/${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" && \
+RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="${CERTIFICATES_DIRECTORY}/${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" && \
     if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" ]; then \
       echo "Путь к файлу PFX сертификата CryptoPro не указан! Сертификат использоваться не будет."; \
     else \
@@ -412,11 +414,12 @@ RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="/app/certificates/${CRYPTOPRO_CERT
       fi && \
       \
       echo "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}\n${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}" | \
-      su "${PHP_USER_NAME}" -s /bin/bash -c "certmgr -install -pfx \
+      su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -install -pfx \
         -file "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL}" \
         -pin "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}"; \
       "; \
     fi
+ENV CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN="${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}"
 # ========================================
 
 # ========================================
@@ -434,12 +437,18 @@ RUN rm -r "${TEMP_WORK_DIRECTORY}"
 RUN rm -rf /tmp/* /var/tmp/*
 # ========================================
 
+# Копируем исходные файлы проекта
+ARG SOURCE_DIRECTORY="${APP_DIRECTORY}/src"
+COPY --chown="${PHP_USER_NAME}:${PHP_USER_GROUP}" ./src "${SOURCE_DIRECTORY}"
+
 # Apply lang settings to fix russian letters behaviour in CLI
 ENV LANG=C.UTF-8
 
 # Скрипт запуска контейнера
-COPY ./entrypoint.sh ./
-RUN chmod +x ./entrypoint.sh
-ENTRYPOINT ["/bin/bash","./entrypoint.sh"]
+COPY ./entrypoint.sh "${APP_DIRECTORY}/entrypoint.sh"
+RUN chmod +x "${APP_DIRECTORY}/entrypoint.sh"
+
+WORKDIR "${APP_DIRECTORY}"
+ENTRYPOINT ["/bin/sh", "./entrypoint.sh"]
 
 CMD ["tail", "-f", "/dev/null"]

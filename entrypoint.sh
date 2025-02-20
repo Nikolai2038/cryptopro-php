@@ -1,7 +1,4 @@
-#!/bin/bash
-
-# Fail command if any of pipeline blocks fail
-set -o pipefail || exit "$?"
+#!/bin/sh
 
 # ========================================
 # Установка ini-настроек PHP
@@ -14,7 +11,7 @@ if [ "${CI_ENVIRONMENT_NAME}" = "dev" ] || [ "${CI_ENVIRONMENT_NAME}" = "test" ]
   echo "xdebug.client_host=${XDEBUG_IP}" >> "${custom_settings_file}" || exit "$?"
 
   xdebug_log_level=0
-  if ((XDEBUG_IS_LOGS_VISIBLE)); then
+  if [ "${XDEBUG_IS_LOGS_VISIBLE}" != "0" ]; then
     xdebug_log_level=7
   fi
   # shellcheck disable=SC2320
@@ -24,6 +21,8 @@ fi
 # Настройка временной зоны
 # shellcheck disable=SC2320
 echo "date.timezone = \"${TZ}\"" > "${PHP_INI_DIR}/conf.d/tz.ini" || exit "$?"
+
+echo "Установка ini-настроек PHP: успешно!"
 # ========================================
 
 # ========================================
@@ -60,13 +59,17 @@ cpconfig -license -view || echo "Нет лицензии" >&2 || exit "$?"
 echo "----------------------------------------"
 
 echo "Сертификаты CryptoPRO:"
-su "${PHP_USER_NAME}" -s /bin/bash -c "/opt/cprocsp/bin/amd64/certmgr -list" || echo "Нет лицензии" >&2 || exit "$?"
+su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -list" || echo "Нет лицензии" >&2 || exit "$?"
 echo "----------------------------------------"
 
 echo "Тестовый контейнер CryptoPRO:"
 csptest -keyset -enum_cont -verifyc -fq || echo "Нет лицензии" >&2 || exit "$?"
 echo "========================================"
 # ========================================
+
+echo "Установка прав для сгенерированных папок..."
+chmod a+w "./data" || exit "$?"
+echo "Установка прав для сгенерированных папок: успешно!"
 
 echo "Запуск команды \"$*\"..."
 exec "$@" || exit "$?"

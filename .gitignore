@@ -13,3 +13,7 @@
 # "lsb-cprocsp-devel" из архива Cades.
 # Новые архивы этот файл не содержат, а без его установки, при сборке расширения PHP будет ошибка "fatal error: atldef2.h: No such file or directory".
 !/cryptopro/lsb-cprocsp-devel_5.0.11863-5_all.deb
+
+# Файлы для подписания
+/data/*
+!/data/test.xml

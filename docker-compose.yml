@@ -30,3 +30,10 @@ services:
       - PHP_IDE_CONFIG
 
       - TZ
+
+      - CRYPTOPRO_CERTIFICATE_PFX_FILE_HASH
+    volumes:
+      - ./certificates:/app/certificates
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./entrypoint.sh:/app/entrypoint.sh

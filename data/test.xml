@@ -1,0 +1,48 @@
+<SOAP-ENV:Envelope
+xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+  <SOAP-ENV:Header>
+    <wsse:Security
+      xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+      SOAP-ENV:actor="http://smev.gosuslugi.ru/actors/smev">
+      <wsse:BinarySecurityToken
+        EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"
+        ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3"
+        wsu:Id="SenderCertificate">
+        %BASE64CERT%
+      </wsse:BinarySecurityToken>
+      <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+        <SignedInfo>
+          <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
+          <SignatureMethod Algorithm="%SIGN_METHOD%" />
+          <Reference URI="#body">
+            <Transforms>
+              <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
+            </Transforms>
+            <DigestMethod Algorithm="%DIGEST_METHOD%" />
+            <DigestValue></DigestValue>
+          </Reference>
+        </SignedInfo>
+        <SignatureValue></SignatureValue>
+        <KeyInfo>
+          <wsse:SecurityTokenReference>
+            <wsse:Reference
+              URI="#SenderCertificate"
+              ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3"
+            />
+          </wsse:SecurityTokenReference>
+        </KeyInfo>
+      </Signature>
+    </wsse:Security>
+  </SOAP-ENV:Header>
+  <SOAP-ENV:Body wsu:Id="body">
+    <item>
+      <key xsi:type="xsd:string">id</key>
+      <value xsi:type="xsd:int">0</value>
+    </item>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
