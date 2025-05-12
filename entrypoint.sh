@@ -52,18 +52,24 @@ echo "----------------------------------------"
 
 echo "Composer:"
 composer --version || exit "$?"
-echo "----------------------------------------"
 
+echo "========================================"
+echo "CryptoPRO"
+echo "========================================"
 echo "Лицензия CryptoPRO:"
-cpconfig -license -view || echo "Нет лицензии" >&2 || exit "$?"
-echo "----------------------------------------"
+cpconfig -license -view || echo "Лицензия не найдена!"
 
+echo "----------------------------------------"
 echo "Сертификаты CryptoPRO:"
-su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -list" || echo "Нет лицензии" >&2 || exit "$?"
-echo "----------------------------------------"
+su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -list" || echo "Сертификаты не найдены!"
 
+echo "----------------------------------------"
+echo "Корневые сертификаты CryptoPRO:"
+su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -list -store Root" || echo "Корневые сертификаты не найдены!"
+
+echo "----------------------------------------"
 echo "Тестовый контейнер CryptoPRO:"
-csptest -keyset -enum_cont -verifyc -fq || echo "Нет лицензии" >&2 || exit "$?"
+csptest -keyset -enum_cont -verifyc -fq || echo "Тестовый контейнер не найден!"
 echo "========================================"
 # ========================================
 
