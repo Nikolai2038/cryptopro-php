@@ -398,7 +398,8 @@ ARG CERTIFICATES_DIRECTORY="${APP_DIRECTORY}/certificates"
 COPY --chown="${PHP_USER_NAME}:${PHP_USER_GROUP}" ./certificates "${CERTIFICATES_DIRECTORY}"
 
 ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME
-ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
+ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD
+ARG CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_NEW
 RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="${CERTIFICATES_DIRECTORY}/${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" && \
     if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME}" ]; then \
       echo "Путь к файлу PFX сертификата CryptoPro не указан! Сертификат использоваться не будет."; \
@@ -408,18 +409,18 @@ RUN CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL="${CERTIFICATES_DIRECTORY}/${CRYPTO
         exit 1; \
       fi && \
       \
-      if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}" ]; then \
-        echo "Указан файл сертификата, но не указан PIN для него! PIN необходимо указать в переменной CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN."; \
+      if [ -z "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD}" ]; then \
+        echo "Указан файл сертификата, но не указан PIN для него! PIN необходимо указать в переменной CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD."; \
         exit 1; \
       fi && \
       \
-      echo "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}\n${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}" | \
+      echo "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_NEW}\n${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_NEW}" | \
       su "${PHP_USER_NAME}" -s /bin/sh -c "certmgr -install -pfx \
         -file "${CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME_FULL}" \
-        -pin "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}"; \
+        -pin "${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD}"; \
       "; \
     fi
-ENV CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN="${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN}"
+ENV CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD="${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD}"
 # ========================================
 
 # ========================================

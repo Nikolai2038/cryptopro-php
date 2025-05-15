@@ -21,7 +21,8 @@ services:
 
         - CRYPTOPRO_LICENSE
         - CRYPTOPRO_CERTIFICATE_PFX_FILE_NAME
-        - CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
+        - CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD
+        - CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_NEW
     image: cryptopro-php:latest
     container_name: cryptopro-php
     environment:

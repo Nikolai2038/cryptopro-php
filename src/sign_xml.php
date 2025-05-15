@@ -92,7 +92,7 @@ try {
   printf("Открытие сертификата для подписания...\n");
   $signer = new CPSigner();
   $signer->set_Certificate($cert);
-  $signer->set_KeyPin(getenv("CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN"));
+  $signer->set_KeyPin(getenv("CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_NEW"));
   printf("Открытие сертификата для подписания: успешно!\n");
 
   printf("Создание объекта CAdESCOM.SignedXML...\n");
