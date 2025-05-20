@@ -307,6 +307,12 @@ RUN if [ "${PHP_USER_NAME}" != "www-data" ]; then \
 RUN sed -Ei "s/^(user = ).*\$/\1${PHP_USER_NAME}/" "${WWW_CONF_PATH}"
 RUN sed -Ei "s/^(group = ).*\$/\1${PHP_USER_GROUP}/" "${WWW_CONF_PATH}"
 
+# Разрешаем обращение к PHP-FPM из других контейнеров
+RUN sed -Ei "s/^(listen = ).*\$/\10.0.0.0:9000/" "${WWW_CONF_PATH}"
+
+# Настройка оболочки пользователя (чтобы не указывать её каждый раз в команде, если потребуется что-то от него выполнить)
+RUN usermod --shell /bin/bash "${PHP_USER_NAME}"
+
 # Для использования в entrypoint.sh
 ENV PHP_USER_NAME="${PHP_USER_NAME}"
 ENV PHP_USER_GROUP="${PHP_USER_GROUP}"
