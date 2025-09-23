@@ -25,9 +25,9 @@ ARG TEMP_WORK_DIRECTORY="/temp/work-directory"
 # ========================================
 # Установка PHP
 # ========================================
-ARG PHP_VERSION_MAJOR
-ARG PHP_VERSION_MINOR
-ARG PHP_VERSION_PATCH
+ARG PHP_VERSION_MAJOR=required
+ARG PHP_VERSION_MINOR=required
+ARG PHP_VERSION_PATCH=required
 RUN if [ -z "${PHP_VERSION_MAJOR}" ] || [ -z "${PHP_VERSION_MINOR}" ] || [ -z "${PHP_VERSION_PATCH}" ]; then \
       echo "Необходимо указать переменные PHP_VERSION_MAJOR, PHP_VERSION_MINOR и PHP_VERSION_PATCH!"; \
       exit 1; \
@@ -36,7 +36,7 @@ ARG PHP_VERSION_FULL="${PHP_VERSION_MAJOR}.${PHP_VERSION_MINOR}.${PHP_VERSION_PA
 
 # Директория с php.ini.
 # Обязательно называем именно так, и экспортируем как env-переменную
-ARG PHP_INI_DIR="/etc/php/${PHP_VERSION}/fpm"
+ARG PHP_INI_DIR="/etc/php/${PHP_VERSION_MAJOR}.${PHP_VERSION_MINOR}/fpm"
 ENV PHP_INI_DIR="${PHP_INI_DIR}"
 
 # Директория, в которой будем работать
@@ -104,13 +104,12 @@ RUN ./configure \
       --enable-sysvshm \
       --enable-pcntl \
       --enable-gd
-RUN make
-RUN make install
-
-# Проверка установки
-RUN php -v
-RUN php-fpm -v
-RUN php-config --version
+RUN make -j"$(nproc)"
+RUN make install && \
+      # Проверка установки
+      php -v && \
+      php-fpm -v && \
+      php-config --version
 # ========================================
 
 # ========================================
@@ -244,7 +243,8 @@ RUN if { [ "${CSP_VERSION_MAIN}" -eq "50" ] && [ "${CSP_VERSION_REDACTION}" -ge 
       # ----------------------------------------
     fi
 
-ENV PATH="/opt/cprocsp/bin/amd64:/opt/cprocsp/sbin/amd64:${PATH}"
+# NOTE: We must apply PATH before CryptoPro executables to not let it override some system utilities (like "curl")
+ENV PATH="${PATH}:/opt/cprocsp/bin/amd64:/opt/cprocsp/sbin/amd64"
 
 # Проверка установки
 RUN certmgr --help
@@ -254,9 +254,8 @@ RUN certmgr --help
 # Установка расширения CryptoPro для PHP
 # ========================================
 ARG PHP_CADES_DIRECTORY="/opt/cprocsp/src/phpcades"
-RUN \
-    # Способ 1: Использование системного PHP Cades (с патчем)
-    if [ "${INSTALL_PHP_CADES_FROM_REPO}" = "0" ]; then \
+# Способ 1: Использование системного PHP Cades (с патчем)
+RUN if [ "${INSTALL_PHP_CADES_FROM_REPO}" = "0" ]; then \
       cd "${PHP_CADES_DIRECTORY}" && \
       # Применение патча
       patch -p0 < "${TEMP_WORK_DIRECTORY}/cryptopro/php${PHP_VERSION_MAJOR}_support.patch"; \
@@ -264,10 +263,9 @@ RUN \
     else \
       mkdir --parents /opt/cprocsp/src && \
       git clone https://github.com/CryptoPro/phpcades.git "${PHP_CADES_DIRECTORY}"; \
-    fi
-
-# Указание версии PHP
-RUN sed -i "s#PHPDIR=/php#PHPDIR=${TEMP_WORK_DIRECTORY}/php-${PHP_VERSION_FULL}#g" "${PHP_CADES_DIRECTORY}/Makefile.unix"
+    fi && \
+    # Указание версии PHP
+    sed -i "s#PHPDIR=/php#PHPDIR=${TEMP_WORK_DIRECTORY}/php-${PHP_VERSION_FULL}#g" "${PHP_CADES_DIRECTORY}/Makefile.unix"
 
 # To fix "fatal error: boost/shared_ptr.hpp: No such file or directory"
 RUN apt-get update && \
@@ -277,17 +275,14 @@ RUN apt-get update && \
 RUN eval "$(/opt/cprocsp/src/doxygen/setenv.sh --64)" && \
     cd "${PHP_CADES_DIRECTORY}" && \
     # Указываем "-fpermissive" для исправления ошибки "error: declaration does not declare anything [-fpermissive]" из-за типа "__s32".
-    add_CPPFLAGS=-fpermissive make -f Makefile.unix
-
-# Копирование собранного файла расширения
-RUN mv "${PHP_CADES_DIRECTORY}/libphpcades.so" "$(php -i | grep '^extension_dir => ' | awk '{print $3}')"
-
-# Включение расширения
-RUN mkdir --parents "${PHP_INI_DIR}/conf.d" && \
-    echo "extension=libphpcades.so" >> "${PHP_INI_DIR}/conf.d/cryptopro_custom_settings.ini"
-
-# Проверка установки
-RUN php -r "var_dump(class_exists('CPStore'));" | grep -q 'bool(true)'
+    add_CPPFLAGS=-fpermissive make -f Makefile.unix && \
+    # Копирование собранного файла расширения
+    mv "${PHP_CADES_DIRECTORY}/libphpcades.so" "$(php -i | grep '^extension_dir => ' | awk '{print $3}')" && \
+    # Включение расширения
+    mkdir --parents "${PHP_INI_DIR}/conf.d" && \
+    echo "extension=libphpcades.so" >> "${PHP_INI_DIR}/conf.d/cryptopro_custom_settings.ini" && \
+    # Проверка установки
+    php -r "var_dump(class_exists('CPStore'));" | grep -q 'bool(true)'
 # ========================================
 
 # ========================================
@@ -298,20 +293,17 @@ ARG WWW_CONF_PATH="${PHP_INI_DIR}/php-fpm.d/www.conf"
 # Добавление пользователя (пользователь www-data уже существует, поэтому пропускаем, если выбран именно он)
 RUN if [ "${PHP_USER_GROUP}" != "www-data" ]; then \
       groupadd --system "${PHP_USER_GROUP}"; \
-    fi
-RUN if [ "${PHP_USER_NAME}" != "www-data" ]; then \
+    fi && \
+    if [ "${PHP_USER_NAME}" != "www-data" ]; then \
       useradd --no-log-init --gid "${PHP_USER_GROUP}" "${PHP_USER_NAME}" --create-home; \
-    fi
-
-# Обновление конфигурации
-RUN sed -Ei "s/^(user = ).*\$/\1${PHP_USER_NAME}/" "${WWW_CONF_PATH}"
-RUN sed -Ei "s/^(group = ).*\$/\1${PHP_USER_GROUP}/" "${WWW_CONF_PATH}"
-
-# Разрешаем обращение к PHP-FPM из других контейнеров
-RUN sed -Ei "s/^(listen = ).*\$/\10.0.0.0:9000/" "${WWW_CONF_PATH}"
-
-# Настройка оболочки пользователя (чтобы не указывать её каждый раз в команде, если потребуется что-то от него выполнить)
-RUN usermod --shell /bin/bash "${PHP_USER_NAME}"
+    fi && \
+    # Обновление конфигурации
+    sed -Ei "s/^(user = ).*\$/\1${PHP_USER_NAME}/" "${WWW_CONF_PATH}" && \
+    sed -Ei "s/^(group = ).*\$/\1${PHP_USER_GROUP}/" "${WWW_CONF_PATH}" && \
+    # Разрешаем обращение к PHP-FPM из других контейнеров
+    sed -Ei "s/^(listen = ).*\$/\10.0.0.0:9000/" "${WWW_CONF_PATH}" && \
+    # Настройка оболочки пользователя (чтобы не указывать её каждый раз в команде, если потребуется что-то от него выполнить)
+    usermod --shell /bin/bash "${PHP_USER_NAME}"
 
 # Для использования в entrypoint.sh
 ENV PHP_USER_NAME="${PHP_USER_NAME}"
@@ -343,26 +335,27 @@ COPY ./composer-setup.php ./composer-setup.php
 # Способ 2: Скачивание каждый раз
 # RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
 
-# Хэш может поменяться со временем (в случае скачивания каждый раз) - брать его с https://getcomposer.org/download
-RUN php -r "if (hash_file('sha384', 'composer-setup.php') === 'dac665fdc30fdd8ec78b38b9800061b4150413ff2e3b6f88543c636f7cd84f6db9189d43a81e5503cda447da73c7e5b6') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
-
 ARG COMPOSER_VERSION
-RUN if [ -z "${COMPOSER_VERSION}" ]; then \
+# NOTE: Хэш может поменяться со временем (в случае скачивания каждый раз) - брать его с https://getcomposer.org/download
+RUN php -r "if (hash_file('sha384', 'composer-setup.php') === 'dac665fdc30fdd8ec78b38b9800061b4150413ff2e3b6f88543c636f7cd84f6db9189d43a81e5503cda447da73c7e5b6') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" && \
+    if [ -z "${COMPOSER_VERSION}" ]; then \
       echo "Необходимо указать переменную COMPOSER_VERSION!"; \
       exit 1; \
-    fi
-RUN php composer-setup.php --version "${COMPOSER_VERSION}"
-RUN mv composer.phar /usr/local/bin/composer
-RUN php -r "unlink('composer-setup.php');"
+    fi && \
+    php composer-setup.php --version "${COMPOSER_VERSION}" && \
+    mv composer.phar /usr/local/bin/composer && \
+    php -r "unlink('composer-setup.php');" && \
+    # Проверка установки Composer
+    composer --version
 
-# Проверка установки Composer
-RUN composer --version
-
-# Необходимо для распаковки пакетов при выполнении команды "composer install"
-RUN apt-get update && apt-get dist-upgrade -y \
-    && apt install -y \
-        zip \
-        unzip
+# Установка необходимых пакетов для команды "composer install"
+RUN apt-get update && \
+    apt install -y \
+      # Для установки пакетов из исходного кода
+      git \
+      # Для распаковки пакетов
+      zip \
+      unzip
 # ========================================
 
 # ========================================
@@ -430,18 +423,12 @@ ENV CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN_OLD="${CRYPTOPRO_CERTIFICATE_PFX_FILE_PIN
 # ========================================
 
 # ========================================
-# Очистка лишних файлов и кешей для уменьшения размера образа
+# Очистка лишних файлов и кешей
 # ========================================
-# Очистка APT
-RUN apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 # Очистка директории, использованной для загрузки файлов, распаковок и прочего
-RUN rm -r "${TEMP_WORK_DIRECTORY}"
-
-# Очистка временных файлов
-RUN rm -rf /tmp/* /var/tmp/*
+RUN rm -r "${TEMP_WORK_DIRECTORY}" && \
+    # Очистка временных файлов
+    rm -rf /tmp/* /var/tmp/*
 # ========================================
 
 # Копируем исходные файлы проекта
