@@ -164,9 +164,12 @@ ARG CADES_FILE_PATH="${TEMP_WORK_DIRECTORY}/cryptopro/${CADES_FILE_NAME}"
 ARG CADES_EXTRACT_PATH="${TEMP_WORK_DIRECTORY}/${CADES_EXTRACT_NAME}"
 
 # Нужно ли устанавливать PHP Cades из репозитория GitHub или установить его из архива CSP:
-# - 0: установка из архива CSP.
-# - 1: установка из репозитория GitHub.
-ARG INSTALL_PHP_CADES_FROM_REPO=0
+# - 0: Установка из архива CSP (с применением патча).
+#      See https://docs.cryptopro.ru/cades/phpcades/phpcades-install-archived
+#      NOTE: Патч работал на ранних версиях PHP 8, но в последних версиях работать перестал - его нужно обновить.
+# - 1: Установка из репозитория GitHub.
+#      See https://docs.cryptopro.ru/cades/phpcades/phpcades-install
+ARG INSTALL_PHP_CADES_FROM_REPO=1
 
 RUN if { [ "${CSP_VERSION_MAIN}" -eq "50" ] && [ "${CSP_VERSION_REDACTION}" -ge "3" ] ; } || [ "${CSP_VERSION_MAIN}" -gt "50" ]; then \
       cd "${CSP_EXTRACT_PATH}" && \
